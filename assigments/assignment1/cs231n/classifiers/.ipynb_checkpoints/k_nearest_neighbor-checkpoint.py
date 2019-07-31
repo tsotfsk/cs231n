@@ -77,9 +77,10 @@ class KNearestNeighbor(object):
                 #####################################################################
                 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-                pass
+                dists[i][j] = np.sum(abs(num_test[i] - num_train[j]))
 
                 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        print(dists)
         return dists
 
     def compute_distances_one_loop(self, X):

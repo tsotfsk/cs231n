@@ -77,7 +77,7 @@ class KNearestNeighbor(object):
                 #####################################################################
                 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-                pass
+                dists[i, j] = np.sqrt(np.sum(abs(X[i, :] - self.X_train[j, :]) ** 2))
 
                 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -101,7 +101,7 @@ class KNearestNeighbor(object):
             #######################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            dists[i, :] = np.sqrt(np.sum(abs(X[i, :] - self.X_train) ** 2, axis=1))  # 利用boradcast性质，然后按行加
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -131,7 +131,11 @@ class KNearestNeighbor(object):
         #########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # 这里思想主要是将表达式展开(a-b)^2=a^2 = a^2 -2ab +b^2, 写出表达式可以发现是两次broadcast和三次dot
+        a = np.sum(X ** 2, axis=1).reshape(X.shape[0], 1)
+        b = np.dot(X, self.X_train.T)
+        c = np.sum(self.X_train ** 2, axis=1).reshape(self.X_train.shape[0], 1).T
+        dists = np.sqrt(a - 2 * b + c)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -164,7 +168,8 @@ class KNearestNeighbor(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            idxs = np.argsort(dists[i, :]) 
+            closest_y = self.y_train[idxs[:k]]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
             #########################################################################
@@ -175,8 +180,8 @@ class KNearestNeighbor(object):
             # label.                                                                #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
+            closest_y = closest_y.tolist()
+            y_pred[i] = max(closest_y, key=closest_y.count)
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
