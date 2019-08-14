@@ -36,13 +36,17 @@ def svm_loss_naive(W, X, y, reg):
             margin = scores[j] - correct_class_score + 1 # note delta = 1
             if margin > 0:
                 loss += margin
+                dW[:, j] += X[i].T
+                dW[:,y[i]] -= X[i].T
 
     # Right now the loss is a sum over all training examples, but we want it
     # to be an average instead so we divide by num_train.
     loss /= num_train
+    dW /= num_train
 
     # Add regularization to the loss.
     loss += reg * np.sum(W * W)
+    dW += 2 * reg * W
 
     #############################################################################
     # TODO:                                                                     #
@@ -54,7 +58,7 @@ def svm_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # 修改了上面的代码，见39~47行
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     
@@ -78,8 +82,24 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # 1.先求Q=X dot W
+    # 2.通过y为索引求出Qy,也就是正确的评分列
+    # 3.然后将Q用broadcast减去Qy+1得到dev_Q
+    # 4.以Qy为索引访问dev_Q将所在yi位置的置0
+    # 5.将小于0的位置也要置0
+    # 6.dev_Q中挑选出>0的位置，得到Index矩阵
+    # 7.以Index矩阵为索引，访问Q然后求和，进而再经过简单的求和，平均等求出loss
 
+    num_train = X.shape[0]
+    Q = X.dot(W)
+    Qy = Q[np.arange(num_train), y]
+    Qy = np.reshape(Qy, (num_train, 1))
+    dev_Q = Q - Qy + 1
+    dev_Q[np.arange(num_train), y] = 0
+    dev_Q[dev_Q < 0] = 0
+    Index = dev_Q[dev_Q > 0]
+    loss += np.sum(Index) / num_train
+    loss += reg * np.sum(W * W)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     #############################################################################
@@ -93,7 +113,13 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # 1.求梯度需要知道哪些位置大于0，将这些位置赋值为1
+    # 2.yi位置牵涉到要减的次数，可以用行的sum来得到需要减几次
+    # 3.用X和yi点乘就可以得到grad相关的矩阵，除以N就可以得到核心部分的grad
+    dev_Q[dev_Q > 0] = 1
+    row_sum = np.sum(dev_Q, axis=1)
+    dev_Q[np.arange(num_train), y] = -row_sum
+    dW = X.T.dot(dev_Q) / num_train + 2 * reg * W 
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
