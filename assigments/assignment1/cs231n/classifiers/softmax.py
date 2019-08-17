@@ -72,16 +72,19 @@ def softmax_loss_vectorized(W, X, y, reg):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     # 详细计算过程参考softmax.wmf文件
+
+    #计算loss
     Q = X.dot(W)
     dev_Q = np.exp(Q)
-    index_Q = np.zeros_like(Q)
-    index_Q[np.arange(dev_Q.shape[0]), y] = 1
     rows_sum = np.sum(dev_Q, axis=1)
     correct = dev_Q[np.arange(dev_Q.shape[0]), y]
     dev_Loss = np.log(correct / rows_sum)
     loss -= np.sum(dev_Loss) / dev_Q.shape[0]
     loss += reg * np.sum(W * W)
 
+    #计算dw
+    index_Q = np.zeros_like(Q)
+    index_Q[np.arange(dev_Q.shape[0]), y] = 1
     dW = -X.T.dot(index_Q)+(X.T / rows_sum.T).dot(dev_Q)
     dW /=  dev_Q.shape[0]
     dW += 2 * reg * W
