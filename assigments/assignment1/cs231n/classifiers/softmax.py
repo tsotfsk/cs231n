@@ -33,8 +33,21 @@ def softmax_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-
+    # 1.首先得到Q=X 点乘 W
+    # 2.然后计算每行的e次方的和
+    # 3.求出Li然后相加求和
+    Q = X.dot(W)
+    dev_Q = np.exp(Q)
+    for i in range(dev_Q.shape[0]):
+      row_sum = np.sum(dev_Q[i])
+      loss -= np.log(dev_Q[i, y[i]] / row_sum)
+      dW[:, y[i]] -= X[i].T
+      for j in range(W.shape[1]):
+        dW[:, j] +=  dev_Q[i, j] * X[i].T / row_sum
+    loss /= dev_Q.shape[0]
+    dW /=  dev_Q.shape[0]
+    loss += reg * np.sum(W * W)
+    dW += 2 * reg * W
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW
@@ -58,8 +71,20 @@ def softmax_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # 详细计算过程参考softmax.wmf文件
+    Q = X.dot(W)
+    dev_Q = np.exp(Q)
+    index_Q = np.zeros_like(Q)
+    index_Q[np.arange(dev_Q.shape[0]), y] = 1
+    rows_sum = np.sum(dev_Q, axis=1)
+    correct = dev_Q[np.arange(dev_Q.shape[0]), y]
+    dev_Loss = np.log(correct / rows_sum)
+    loss -= np.sum(dev_Loss) / dev_Q.shape[0]
+    loss += reg * np.sum(W * W)
 
+    dW = -X.T.dot(index_Q)+(X.T / rows_sum.T).dot(dev_Q)
+    dW /=  dev_Q.shape[0]
+    dW += 2 * reg * W
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW
