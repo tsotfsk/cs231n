@@ -80,7 +80,9 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        hid_scores = X.dot(W1) + b1
+        hid_scores[hid_scores < 0] = 0
+        scores = hid_scores.dot(W2) + b2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -97,8 +99,11 @@ class TwoLayerNet(object):
         # classifier loss.                                                          #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        exp_scores = np.exp(scores)
+        rows_sum = np.log(np.sum(exp_scores, axis=1))
+        data_loss = np.sum(-scores[np.arange(N), y] + rows_sum) / N
+        reg_loss = reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+        loss = data_loss + reg_loss
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -111,7 +116,29 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+
+        #计算dW2和db2
+        H = W2.shape[0]
+        index_S = np.zeros_like(scores)
+        n_ones = np.ones((N, ))
+        index_S[np.arange(N), y] = 1
+        rows_sum = np.sum(exp_scores, axis=1)
+        grads['W2'] = -hid_scores.T.dot(index_S) + (hid_scores.T / rows_sum.T).dot(exp_scores) 
+        grads['W2'] = grads['W2'] / N + 2 * reg * W2
+        grads['b2'] = -n_ones.T.dot(index_S) + (n_ones.T / rows_sum.T).dot(exp_scores)
+        grads['b2'] = grads['b2'] / N
+
+        # 反向传播计算dW1和db1
+
+        # 先求出dHid
+        dHid = np.zeros_like(hid_scores)
+        dHid = -index_S.dot(W2.T) + exp_scores.dot(W2.T) / rows_sum.T.reshape((N, 1))
+
+        # 再求出W1和b1的梯度
+        dHid[hid_scores <= 0] = 0
+        grads['W1'] = X.T.dot(dHid) / N + 2 * reg * W1
+        grads['b1'] = n_ones.T.dot(dHid) / N
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -155,8 +182,9 @@ class TwoLayerNet(object):
             # them in X_batch and y_batch respectively.                             #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
+            index_batch = np.random.choice(np.arange(X.shape[0]), size=batch_size)
+            X_batch = X[index_batch]
+            y_batch = y[index_batch]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -171,8 +199,8 @@ class TwoLayerNet(object):
             # stored in the grads dictionary defined above.                         #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
+            for param in self.params:
+                self.params[param] -= learning_rate * grads[param]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -218,7 +246,12 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        hid_scores = X.dot(self.params['W1']) + self.params['b1']
+        hid_scores[hid_scores < 0] = 0
+        scores = hid_scores.dot(self.params['W2']) + self.params['b2']
+        y_pred = np.zeros((X.shape[0], ))
+        for i in range(X.shape[0]):
+            y_pred[i] = np.argwhere(scores[i] == np.max(scores[i]))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
