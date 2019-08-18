@@ -116,6 +116,7 @@ def svm_loss_vectorized(W, X, y, reg):
     # 1.求梯度需要知道哪些位置大于0，将这些位置赋值为1
     # 2.yi位置牵涉到要减的次数，可以用行的sum来得到需要减几次
     # 3.用X和yi点乘就可以得到grad相关的矩阵，除以N就可以得到核心部分的grad
+    # 详情见svm的梯度推导.wmf
     dev_Q[dev_Q > 0] = 1
     row_sum = np.sum(dev_Q, axis=1)
     dev_Q[np.arange(num_train), y] = -row_sum

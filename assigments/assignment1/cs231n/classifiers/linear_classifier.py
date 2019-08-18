@@ -104,7 +104,7 @@ class LinearClassifier(object):
 
         Q = X.dot(self.W)
         for i in range(X.shape[0]):
-          y_pred[i] = np.argwhere(Q[i] == np.max(Q[i]))
+            y_pred[i] = np.argwhere(Q[i] == np.max(Q[i]))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return y_pred
