@@ -39,11 +39,11 @@ def softmax_loss_naive(W, X, y, reg):
     Q = X.dot(W)
     dev_Q = np.exp(Q)
     for i in range(dev_Q.shape[0]):
-      row_sum = np.sum(dev_Q[i])
-      loss -= np.log(dev_Q[i, y[i]] / row_sum)
-      dW[:, y[i]] -= X[i].T
-      for j in range(W.shape[1]):
-        dW[:, j] +=  dev_Q[i, j] * X[i].T / row_sum
+    	row_sum = np.sum(dev_Q[i])
+    	loss -= np.log(dev_Q[i, y[i]] / row_sum)
+    	dW[:, y[i]] -= X[i].T
+    	for j in range(W.shape[1]):
+            dW[:, j] +=  dev_Q[i, j] * X[i].T / row_sum
     loss /= dev_Q.shape[0]
     dW /=  dev_Q.shape[0]
     loss += reg * np.sum(W * W)
