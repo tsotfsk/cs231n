@@ -49,7 +49,11 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        D, H, C = input_dim, hidden_dim, num_classes
+        self.params['W1'] = weight_scale * np.random.randn(D, H)
+        self.params['W2'] = weight_scale * np.random.randn(H, C)
+        self.params['b1'] = np.zeros((H,))
+        self.params['b2'] = np.zeros((C,))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -82,8 +86,16 @@ class TwoLayerNet(object):
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        W1, W2 = self.params['W1'], self.params['W2']
+        b1, b2 = self.params['b1'], self.params['b2']
 
-        pass
+        H, = b1.shape
+        C, = b2.shape
+        N = X.shape[0]
+        dev_X = X.reshape((N, -1))
+        hid_scores = dev_X.dot(W1) + b1
+        hid_scores[hid_scores < 0] = 0
+        scores = hid_scores.dot(W2) + b2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -106,9 +118,33 @@ class TwoLayerNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        
+        # 计算loss
+        exp_scores = np.exp(scores)
+        rows_sum = np.sum(exp_scores, axis=1)
+        loss += np.sum(np.log(rows_sum)) / N
+        loss -= np.sum(scores[np.arange(N), y]) / N
+        loss += 0.5 * self.reg * (np.sum(W2 * W2) + np.sum(W1 * W1))
+        
 
-        pass
+        # 计算grad, 少加了负号= =,浪费我好久时间debug...
+        index_S = np.zeros_like(scores)
+        index_S[np.arange(N), y] = 1
+        grads['W2'] = -hid_scores.T.dot(index_S) + (hid_scores.T / rows_sum.T).dot(exp_scores)
+        grads['W2'] /= N
+        grads['W2'] += self.reg * W2
 
+        grads['b2'] = -np.ones((N, 1)).T.dot(index_S) + (np.ones((N, 1)).T / rows_sum.T).dot(exp_scores)
+        grads['b2'] /= N
+        grads['b2'] = grads['b2'].reshape((C,))
+
+        dHid = -index_S.dot(W2.T)  + (exp_scores).dot(W2.T) / rows_sum.reshape((N,1))
+        dHid = dHid * (hid_scores > 0)
+
+        grads['W1'] = dev_X.T.dot(dHid) / N + self.reg * W1
+        grads['b1'] = np.ones((N, 1)).T.dot(dHid) / N
+        grads['b1'] = grads['b1'].reshape((H,))
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -163,7 +199,7 @@ class FullyConnectedNet(object):
         self.num_layers = 1 + len(hidden_dims)
         self.dtype = dtype
         self.params = {}
-
+        
         ############################################################################
         # TODO: Initialize the parameters of the network, storing all values in    #
         # the self.params dictionary. Store weights and biases for the first layer #
@@ -171,14 +207,22 @@ class FullyConnectedNet(object):
         # initialized from a normal distribution centered at 0 with standard       #
         # deviation equal to weight_scale. Biases should be initialized to zero.   #
         #                                                                          #
-        # When using batch normalization, store scale and shift parameters for the #
+        # When using batch normalization, store scale and shift padrameters for the #
         # first layer in gamma1 and beta1; for the second layer use gamma2 and     #
         # beta2, etc. Scale parameters should be initialized to ones and shift     #
         # parameters should be initialized to zeros.                               #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        
+        d_list = [input_dim, *hidden_dims, num_classes]
+        for i in range(self.num_layers):
+            self.params['W{}'.format(i + 1)] = weight_scale * np.random.randn(d_list[i], d_list[i + 1])
+            self.params['b{}'.format(i + 1)] = np.zeros((d_list[i + 1],))
 
-        pass
+        if normalization:
+            for i in range(self.num_layers - 1):
+                self.params['gamma{}'.format(i + 1)] = np.ones(d_list[i + 1])
+                self.params['beta1{}'.format(i + 1)] = np.ones(d_list[i + 1])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -240,8 +284,28 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        out = X
+        self.cache_list = []
+        deepth = 1
+        while deepth < self.num_layers:
+            # 映射层
+            out, cache = affine_forward(out, self.params['W{}'.format(deepth)], self.params['b{}'.format(deepth)])
+            self.cache_list.append(cache)
 
-        pass
+            # 批量标准化层
+            if self.normalization:
+                out, cache = batchnorm_forward(out, self.params['gamma{}'.format(deepth)], self.params['beta{}'.format(deepth)], self.bn_params[deepth - 1])
+                self.cache_list.append(cache)
+
+            # 激活函数层
+            out, cache = relu_forward(out)
+            self.cache_list.append(cache)
+
+            deepth += 1
+
+        # 求分数
+        scores, cache = affine_forward(out, self.params['W{}'.format(self.num_layers)], self.params['b{}'.format(self.num_layers)])
+        self.cache_list.append(cache)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -259,8 +323,8 @@ class FullyConnectedNet(object):
         # data loss using softmax, and make sure that grads[k] holds the gradients #
         # for self.params[k]. Don't forget to add L2 regularization!               #
         #                                                                          #
-        # When using batch/layer normalization, you don't need to regularize the scale   #
-        # and shift parameters.                                                    #
+        # When using batch/layer normalization, you don't need to regularize the   #
+        # scale and shift parameters.                                              #
         #                                                                          #
         # NOTE: To ensure that your implementation matches ours and you pass the   #
         # automated tests, make sure that your L2 regularization includes a factor #
@@ -268,8 +332,28 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # 计算loss
+        loss, dx= softmax_loss(scores, y)
+        for i in range(self.num_layers):
+            loss += 0.5 * self.reg * np.sum(self.params['W{}'.format(i + 1)] ** 2)
 
+        # 计算dw
+        deepth = self.num_layers
+        cache = self.cache_list.pop()
+        dx, grads['W{}'.format(deepth)], grads['b{}'.format(deepth)] = affine_backward(dx, cache)
+        grads['W{}'.format(deepth)] += self.reg * self.params['W{}'.format(deepth)]
+
+        while deepth > 1:
+            deepth -= 1
+            cache = self.cache_list.pop()
+            dx = relu_backward(dx, cache)
+            if self.normalization:
+                cache = self.cache_list.pop()
+                dx, grads['gamma{}'.format(deepth)], grads['beta{}'.format(deepth)] = batchnorm_backward(dx, cache)
+            cache = self.cache_list.pop()
+            dx, grads['W{}'.format(deepth)], grads['b{}'.format(deepth)] = affine_backward(dx, cache)
+            grads['W{}'.format(deepth)] += self.reg * self.params['W{}'.format(deepth)]
+            
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
