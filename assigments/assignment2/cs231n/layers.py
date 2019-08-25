@@ -199,7 +199,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         mean = np.mean(x, axis=0)
-        var = np.std(x, axis=0)
+        var = np.var(x, axis=0)
         next_x = np.zeros_like(x)
         next_x = (x - mean) / np.sqrt(var + eps)
         next_x = gamma * next_x + beta
@@ -268,16 +268,16 @@ def batchnorm_backward(dout, cache):
     # might prove to be helpful.                                              #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+
     x, gamma, mean, var, eps = cache
-    N, D = dout.shape
+    N, _ = dout.shape
     dxi = dout * gamma
     dvar = dxi * (x - mean) * (-1/2) * ((var + eps) ** (-3/2))
     dvar = np.sum(dvar, axis=0)
     dmean = np.sum(dxi * (-1 / np.sqrt(var + eps)), axis=0) + dvar * (np.sum(-2 * (x - mean), axis=0)) / N
-    dx = dxi * (-1 / np.sqrt(var + eps)) + dvar * 2 * (x - mean) / N + dmean * 1 / N
-    dgamma = np.sum(dout * x, axis=0)
+    dx = dxi * (1 / np.sqrt(var + eps)) + dvar * 2 * (x - mean) / N + dmean / N
+    dgamma = np.sum(dout * (x - mean) / np.sqrt(var+eps), axis=0)
     dbeta = np.sum(dout, axis=0)
-    pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -312,7 +312,17 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # XXX 并没有发现快...反倒是t2-t1基本都是0...或者t3-t2基本都是0...
+
+    x, gamma, mean, var, eps = cache
+    std = np.sqrt(var + eps)
+    xi = (x - mean) / std
+    dxi = dout * gamma
+    N, _ = dout.shape
+
+    dx = 1/std * (dxi - (xi / N) * np.sum(dxi * xi, axis=0) - (1 / N) * np.sum(dxi, axis=0))
+    dgamma = np.sum(dout * xi, axis=0)
+    dbeta = np.sum(dout, axis=0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -358,8 +368,13 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, _ = x.shape
+    mean = np.mean(x, axis=1)
+    var = np.var(x, axis=1)
+    out = (x - mean.reshape((N,1))) / np.sqrt(var + eps).reshape((N,1))
+    out = gamma * out + beta
 
+    cache = (x, gamma, eps)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -393,13 +408,24 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, gamma, eps = cache
+    xt = x.T.copy()
+    mean = np.mean(xt, axis=0)
+    std = np.sqrt(np.var(xt, axis=0) + eps)
+
+    xi = (xt - mean) / std
+    dxi = (dout * gamma).T
+    _, D = dout.shape
+
+    dx = 1/std * (dxi - (xi / D) * np.sum(dxi * xi, axis=0) - (1 / D) * np.sum(dxi, axis=0))
+    dgamma = np.sum(dout * xi.T, axis=0)
+    dbeta = np.sum(dout, axis=0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-    return dx, dgamma, dbeta
+    return dx.T, dgamma, dbeta
 
 
 def dropout_forward(x, dropout_param):

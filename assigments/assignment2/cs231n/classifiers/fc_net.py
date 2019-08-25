@@ -222,7 +222,7 @@ class FullyConnectedNet(object):
         if normalization:
             for i in range(self.num_layers - 1):
                 self.params['gamma{}'.format(i + 1)] = np.ones(d_list[i + 1])
-                self.params['beta1{}'.format(i + 1)] = np.ones(d_list[i + 1])
+                self.params['beta{}'.format(i + 1)] = np.ones(d_list[i + 1])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -293,8 +293,11 @@ class FullyConnectedNet(object):
             self.cache_list.append(cache)
 
             # 批量标准化层
-            if self.normalization:
+            if self.normalization == 'batchnorm':
                 out, cache = batchnorm_forward(out, self.params['gamma{}'.format(deepth)], self.params['beta{}'.format(deepth)], self.bn_params[deepth - 1])
+                self.cache_list.append(cache)
+            if self.normalization == 'layernorm':
+                out, cache = layernorm_forward(out, self.params['gamma{}'.format(deepth)], self.params['beta{}'.format(deepth)], self.bn_params[deepth - 1])
                 self.cache_list.append(cache)
 
             # 激活函数层
@@ -347,9 +350,12 @@ class FullyConnectedNet(object):
             deepth -= 1
             cache = self.cache_list.pop()
             dx = relu_backward(dx, cache)
-            if self.normalization:
+            if self.normalization == 'batchnorm':
                 cache = self.cache_list.pop()
                 dx, grads['gamma{}'.format(deepth)], grads['beta{}'.format(deepth)] = batchnorm_backward(dx, cache)
+            if self.normalization == 'layernorm':
+                cache = self.cache_list.pop()
+                dx, grads['gamma{}'.format(deepth)], grads['beta{}'.format(deepth)] = layernorm_backward(dx, cache)
             cache = self.cache_list.pop()
             dx, grads['W{}'.format(deepth)], grads['b{}'.format(deepth)] = affine_backward(dx, cache)
             grads['W{}'.format(deepth)] += self.reg * self.params['W{}'.format(deepth)]
