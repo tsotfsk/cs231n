@@ -304,6 +304,9 @@ class FullyConnectedNet(object):
             out, cache = relu_forward(out)
             self.cache_list.append(cache)
 
+            if self.use_dropout:
+                out, cache = dropout_forward(out, self.dropout_param)
+                self.cache_list.append(cache)
             deepth += 1
 
         # 求分数
@@ -348,14 +351,21 @@ class FullyConnectedNet(object):
 
         while deepth > 1:
             deepth -= 1
+
+            if self.use_dropout:
+                cache = self.cache_list.pop()
+                dx = dropout_backward(dx, cache)
+
             cache = self.cache_list.pop()
             dx = relu_backward(dx, cache)
+
             if self.normalization == 'batchnorm':
                 cache = self.cache_list.pop()
                 dx, grads['gamma{}'.format(deepth)], grads['beta{}'.format(deepth)] = batchnorm_backward(dx, cache)
             if self.normalization == 'layernorm':
                 cache = self.cache_list.pop()
                 dx, grads['gamma{}'.format(deepth)], grads['beta{}'.format(deepth)] = layernorm_backward(dx, cache)
+
             cache = self.cache_list.pop()
             dx, grads['W{}'.format(deepth)], grads['b{}'.format(deepth)] = affine_backward(dx, cache)
             grads['W{}'.format(deepth)] += self.reg * self.params['W{}'.format(deepth)]
