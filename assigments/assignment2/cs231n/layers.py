@@ -815,6 +815,7 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     """
     out, cache = None, None
     eps = gn_param.get('eps', 1e-5)
+
     ###########################################################################
     # TODO: Implement the forward pass for spatial group normalization.       #
     # This will be extremely similar to the layer norm implementation.        #
@@ -824,7 +825,16 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, *_ = x.shape
+    dev_x = x.reshape((N * G, -1))
+    N = dev_x.shape[0]
+    mean = np.mean(dev_x, axis=1)
+    var = np.var(dev_x, axis=1)
+    out = (dev_x - mean.reshape((N, 1))) / np.sqrt(var + eps).reshape((N, 1))
+    out = out.reshape(x.shape)
+    out = gamma.reshape((1,C,1,1)) * out + beta.reshape((1,C,1,1))
+
+    cache = (x, gamma, G, eps)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -854,7 +864,25 @@ def spatial_groupnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, gamma, G, eps = cache
+    N, C, *_ = x.shape 
+    dev_x  = x.reshape((N*G, -1))
+
+    xt = dev_x.T.copy()
+    mean = np.mean(xt, axis=0)
+    std = np.sqrt(np.var(xt, axis=0) + eps)
+
+    xi = (xt - mean) / std
+    dxi = (dout * gamma).reshape(dev_x.shape).T
+    _, D = dev_x.shape
+
+    dx = 1/std * (dxi - (xi / D) * np.sum(dxi * xi, axis=0) - (1 / D) * np.sum(dxi, axis=0))
+    dx = dx.T.reshape(x.shape)
+
+    # dgamma 和 dbeta怎么感觉有点问题？？？？？？？？？
+    # ！！！！！！！！！！！！！, 一个keepdims浪费我接近两个小时的时间，我佛了
+    dgamma = np.sum(dout * (xi.T.reshape(x.shape)), axis=(0,2,3), keepdims=True)
+    dbeta = np.sum(dout , axis=(0,2,3), keepdims=True)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
